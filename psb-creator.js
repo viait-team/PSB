@@ -1,4 +1,4 @@
-// final-simple-creator.js
+// psb-creator.js
 
 const canvas = document.getElementById('signature-canvas');
 const generateBtn = document.getElementById('generate-button');
@@ -13,7 +13,7 @@ let allPoints = [];
 let currentPathElement = null;
 let isNewSignature = true;
 
-// --- Corrected Drawing Logic for Real-Time User Feedback ---
+// --- Drawing Listeners (Remain Correct) ---
 canvas.addEventListener('pointerdown', (e) => {
     if (isNewSignature) {
         canvas.innerHTML = '';
@@ -61,7 +61,7 @@ function getPoint(event) {
 generateBtn.addEventListener('click', generateSVG);
 downloadBtn.addEventListener('click', downloadSVG);
 
-// --- MODIFIED generateSVG FUNCTION ---
+// --- generateSVG FUNCTION WITH THE BUG FIX ---
 function generateSVG() {
     if (allPoints.filter(p => p !== null).length < 2) {
         alert("Please draw something first.");
@@ -69,50 +69,75 @@ function generateSVG() {
     }
     isNewSignature = true;
 
-    const startTime = allPoints.find(p => p !== null).time;
+    const firstPoint = allPoints.find(p => p !== null);
     const lastPoint = allPoints.slice().reverse().find(p => p !== null);
+    if (!firstPoint || !lastPoint) return;
+
+    const startTime = firstPoint.time;
     const endTime = lastPoint.time;
     const totalDuration = (endTime - startTime) / 1000;
 
-    // 1. Create a STANDARD, SIMPLE root SVG element
     const svgRoot = document.createElementNS(SVG_NS, 'svg');
     svgRoot.setAttribute('width', '600');
     svgRoot.setAttribute('height', '300');
     svgRoot.setAttribute('xmlns', SVG_NS);
     
-    // 2. Create the main group for the animation
     const performanceGroup = document.createElementNS(SVG_NS, 'g');
     performanceGroup.setAttribute('stroke', 'blue');
     performanceGroup.setAttribute('stroke-width', '1.5');
     performanceGroup.setAttribute('fill', 'none');
 
-    // 3. The segment and animation logic remains identical
-    const validPoints = allPoints.filter(p => p !== null);
-    const totalPoints = validPoints.length;
-    let pointIndex = 0;
+    // --- BUG FIX LOGIC STARTS HERE ---
+    const totalPointsInPerformance = allPoints.length;
 
     for (let i = 0; i < SEGMENT_COUNT; i++) {
-        const startIdx = Math.floor(i * totalPoints / SEGMENT_COUNT);
-        const endIdx = Math.floor((i + 1) * totalPoints / SEGMENT_COUNT);
-        if(startIdx >= endIdx) continue;
+        const startIdx = Math.floor(i * totalPointsInPerformance / SEGMENT_COUNT);
+        const endIdx = Math.floor((i + 1) * totalPointsInPerformance / SEGMENT_COUNT);
+        
+        const segmentPoints = allPoints.slice(startIdx, endIdx);
+        
+        // Find the first and last valid points to get accurate timing for the animation
+        const firstValidPointInSegment = segmentPoints.find(p => p !== null);
+        const lastValidPointInSegment = segmentPoints.slice().reverse().find(p => p !== null);
 
-        const segmentPoints = validPoints.slice(startIdx, endIdx + 1);
-        if (segmentPoints.length < 2) continue;
+        if (!firstValidPointInSegment) continue;
 
-        let pathD = `M ${segmentPoints[0].x.toFixed(2)} ${segmentPoints[0].y.toFixed(2)}`;
-        for(let j=1; j<segmentPoints.length; j++) {
-            pathD += ` L ${segmentPoints[j].x.toFixed(2)} ${segmentPoints[j].y.toFixed(2)}`;
-        }
+        let pathD = '';
+        
+        // This loop now intelligently builds the `d` attribute for the path.
+        segmentPoints.forEach((p, index) => {
+            if (p === null) return;
+
+            // Determine if we need to "Move" or "Line To".
+            // We need a "Move" if it's the very first point of the segment, AND the point
+            // just before this segment in the main array was a null or didn't exist.
+            const previousPointInGlobalArray = (startIdx + index > 0) ? allPoints[startIdx + index - 1] : null;
+            
+            if (pathD === '' && (previousPointInGlobalArray === null || startIdx + index === 0)) {
+                 pathD += `M ${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+            } else if (pathD !== '') {
+                 pathD += `L ${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+            } else {
+                 // This handles the case where a segment starts mid-stroke. It needs to know where it
+                 // came from to draw a connecting line.
+                 const prevPoint = allPoints[startIdx - 1];
+                 if (prevPoint) {
+                    pathD += `M ${prevPoint.x.toFixed(2)} ${prevPoint.y.toFixed(2)} L ${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+                 }
+            }
+        });
+
+        if (pathD.trim() === '') continue;
 
         const path = document.createElementNS(SVG_NS, 'path');
-        path.setAttribute('d', pathD);
+        path.setAttribute('d', pathD.trim());
         path.setAttribute('visibility', 'hidden');
 
         const anim = document.createElementNS(SVG_NS, 'animate');
         anim.setAttribute('attributeName', 'visibility');
         
-        const segmentStartTime = segmentPoints[0].time;
-        const segmentEndTime = segmentPoints[segmentPoints.length - 1].time;
+        const segmentStartTime = firstValidPointInSegment.time;
+        const segmentEndTime = lastValidPointInSegment.time;
         const t1 = (segmentStartTime - startTime) / 1000 / totalDuration;
         const t2 = (segmentEndTime - startTime) / 1000 / totalDuration;
 
@@ -124,10 +149,10 @@ function generateSVG() {
         path.appendChild(anim);
         performanceGroup.appendChild(path);
     }
+    // --- BUG FIX LOGIC ENDS HERE ---
     
     svgRoot.appendChild(performanceGroup);
 
-    // 4. Serialize the final SVG string (NO placeholder)
     const serializer = new XMLSerializer();
     const svgString = serializer.serializeToString(svgRoot);
 
@@ -142,7 +167,7 @@ function downloadSVG() {
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'signature.svg'; 
+    anchor.download = 'animation.svg'; 
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
@@ -155,7 +180,7 @@ function beautifyXML(xmlString) {
     xmlString.split(/>\s*</).forEach(node => {
         if (node.match( /^\/\w/ )) indent = indent.substring(tab.length);
         formatted += indent + '<' + node + '>\r\n';
-        if (node.match( /^<?\w[^>]*[^\/]$/ )) indent += tab;
+        if (node.match( /^<?w[^>]*[^\/]$/ )) indent += tab;
     });
     return formatted.substring(1, formatted.length-3);
 }
