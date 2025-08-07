@@ -80,6 +80,36 @@
             stroke: red;
             stroke-width: 1px;
         }
+
+        #floating-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px; /* Initial anchor */
+            background: #fff;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 999;
+            cursor: move;
+            display: flex;
+            flex-direction: row; /* Horizontal layout */
+            gap: 10px;
+        }
+
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .icon-button:hover {
+            background: #eee;
+        }
     </style>
 </head>
 
@@ -99,13 +129,14 @@
     </div>
 
     <!-- 2. MIDDLE SECTION: ACTION BUTTONS -->
-    <div class="button-group">
+    <div class="button-group" style="visibility:hidden;">
         <button id="generate-button">Generate & Analyze</button>
         <button id="upload-button">Upload & Analyze</button>
         <button id="download-button" disabled>Download SVG</button>
-        <!-- === ADDED RESET BUTTON === -->
         <button id="reset-button">Reset</button>
     </div>
+    
+    <hr/>
 
     <!-- 3. BOTTOM SECTION: FORENSIC ANALYSIS CHARTS -->
     <div class="analysis-container">
@@ -119,10 +150,57 @@
         </div>
     </div>
 
+    <!-- Floating Icon Button Panel -->
+    <div id="floating-panel">
+        <button class="icon-button" title="Generate & Analyze" onclick="document.getElementById('generate-button').click()">⚙️</button>
+        <button class="icon-button" title="Upload & Analyze" onclick="document.getElementById('upload-button').click()">📤</button>
+        <button class="icon-button" title="Download SVG" onclick="document.getElementById('download-button').click()">💾</button>
+        <button class="icon-button" title="Reset" onclick="document.getElementById('reset-button').click()">🔄</button>
+        <button class="icon-button" title="Preview Panel" onclick="togglePreview()">👁️</button>
+        <button class="icon-button" title="s(t) Chart" onclick="toggleChart('st-chart')">📈</button>
+        <button class="icon-button" title="v(s) Chart" onclick="toggleChart('vs-chart')">📉</button>
+    </div>
+
     <!-- Hidden elements -->
     <textarea id="output-svg" style="display: none;" readonly></textarea>
     <input type="file" id="file-input" accept="image/svg+xml" style="display: none;" />
 
+    <script>
+
+        (function makeDraggableHorizontal() {
+            const panel = document.getElementById('floating-panel');
+            let offsetX, isDragging = false;
+
+            panel.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                // Convert right to left for dragging
+                panel.style.left = `${panel.getBoundingClientRect().left}px`;
+                panel.style.right = 'auto';
+                offsetX = e.clientX - panel.offsetLeft;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    panel.style.left = `${e.clientX - offsetX}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => isDragging = false);
+        })();
+
+
+        // Toggle visibility of preview panel
+        function togglePreview() {
+            const preview = document.getElementById('preview-panel');
+            preview.style.display = (preview.style.display === 'none') ? 'block' : 'none';
+        }
+
+        // Toggle visibility of chart panels
+        function toggleChart(chartId) {
+            const chart = document.getElementById(chartId);
+            chart.style.display = (chart.style.display === 'none') ? 'block' : 'none';
+        }
+    </script>
     <script src="psb-creator.js"></script>
 </body>
 
