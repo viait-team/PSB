@@ -1,134 +1,161 @@
-// psb-creator.js
+// final-simple-creator.js
 
 const canvas = document.getElementById('signature-canvas');
-const finalizeBtn = document.getElementById('finalize-button');
-const outputArea = document.getElementById('output-svgx');
+const generateBtn = document.getElementById('generate-button');
+const downloadBtn = document.getElementById('download-button');
+const outputArea = document.getElementById('output-svg');
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+const SEGMENT_COUNT = 100;
 
 let isDrawing = false;
-let performanceData = []; // Array to hold all stroke data
-let currentStroke = null; // The stroke currently being drawn
-let startTime = null; // Timestamp for the start of the signature
+let allPoints = [];
+let currentPathElement = null;
+let isNewSignature = true;
 
-// 1. EVENT LISTENERS FOR DRAWING
-
+// --- Corrected Drawing Logic for Real-Time User Feedback ---
 canvas.addEventListener('pointerdown', (e) => {
-    isDrawing = true;
-    if (startTime === null) {
-        startTime = performance.now(); // Start the master clock
+    if (isNewSignature) {
+        canvas.innerHTML = '';
+        allPoints = [];
+        outputArea.value = '';
+        downloadBtn.disabled = true;
+        isNewSignature = false;
     }
-
-    const point = getCoordinates(e);
-    currentStroke = { points: [point], pathElement: null };
-    
-    // Create a new path element for this stroke
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'black');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('d', `M ${point.x} ${point.y}`);
-    canvas.appendChild(path);
-    currentStroke.pathElement = path;
-    
-    performanceData.push(currentStroke);
+    isDrawing = true;
+    const point = getPoint(e);
+    allPoints.push(point);
+    currentPathElement = document.createElementNS(SVG_NS, 'path');
+    currentPathElement.setAttribute('d', `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`);
+    currentPathElement.setAttribute('stroke', '#333');
+    currentPathElement.setAttribute('stroke-width', '2');
+    currentPathElement.setAttribute('fill', 'none');
+    canvas.appendChild(currentPathElement);
 });
 
 canvas.addEventListener('pointermove', (e) => {
     if (!isDrawing) return;
-
-    const point = getCoordinates(e);
-    currentStroke.points.push(point);
-    
-    // Update the path visually in real-time for immediate user feedback
-    const currentD = currentStroke.pathElement.getAttribute('d');
-    currentStroke.pathElement.setAttribute('d', `${currentD} L ${point.x} ${point.y}`);
+    const point = getPoint(e);
+    allPoints.push(point);
+    const currentD = currentPathElement.getAttribute('d');
+    currentPathElement.setAttribute('d', `${currentD} L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`);
 });
 
 canvas.addEventListener('pointerup', () => {
     isDrawing = false;
-    currentStroke = null;
+    currentPathElement = null;
+    if (allPoints.length > 0 && allPoints[allPoints.length - 1] !== null) {
+        allPoints.push(null);
+    }
 });
 
-// Helper function to get coordinates relative to the SVG canvas
-function getCoordinates(event) {
+function getPoint(event) {
     const rect = canvas.getBoundingClientRect();
     return {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
-        time: performance.now() - startTime // Time elapsed since signature start
+        time: performance.now()
     };
 }
 
-// 2. THE FINALIZATION LOGIC
-finalizeBtn.addEventListener('click', generateSVGX);
+generateBtn.addEventListener('click', generateSVG);
+downloadBtn.addEventListener('click', downloadSVG);
 
+// --- MODIFIED generateSVG FUNCTION ---
+function generateSVG() {
+    if (allPoints.filter(p => p !== null).length < 2) {
+        alert("Please draw something first.");
+        return;
+    }
+    isNewSignature = true;
 
-// Add this function to psb-creator.js
+    const startTime = allPoints.find(p => p !== null).time;
+    const lastPoint = allPoints.slice().reverse().find(p => p !== null);
+    const endTime = lastPoint.time;
+    const totalDuration = (endTime - startTime) / 1000;
 
-function generateSVGX() {
-    let performanceGroup = '<g id="signature-performance">\n';
+    // 1. Create a STANDARD, SIMPLE root SVG element
+    const svgRoot = document.createElementNS(SVG_NS, 'svg');
+    svgRoot.setAttribute('width', '600');
+    svgRoot.setAttribute('height', '300');
+    svgRoot.setAttribute('xmlns', SVG_NS);
+    
+    // 2. Create the main group for the animation
+    const performanceGroup = document.createElementNS(SVG_NS, 'g');
+    performanceGroup.setAttribute('stroke', 'blue');
+    performanceGroup.setAttribute('stroke-width', '1.5');
+    performanceGroup.setAttribute('fill', 'none');
 
-    performanceData.forEach((stroke, index) => {
-        if (stroke.points.length < 2) return;
+    // 3. The segment and animation logic remains identical
+    const validPoints = allPoints.filter(p => p !== null);
+    const totalPoints = validPoints.length;
+    let pointIndex = 0;
 
-        // --- Create the final static path for the stroke ---
-        let pathD = `M ${stroke.points[0].x} ${stroke.points[0].y}`;
-        for (let i = 1; i < stroke.points.length; i++) {
-            pathD += ` L ${stroke.points[i].x} ${stroke.points[i].y}`;
+    for (let i = 0; i < SEGMENT_COUNT; i++) {
+        const startIdx = Math.floor(i * totalPoints / SEGMENT_COUNT);
+        const endIdx = Math.floor((i + 1) * totalPoints / SEGMENT_COUNT);
+        if(startIdx >= endIdx) continue;
+
+        const segmentPoints = validPoints.slice(startIdx, endIdx + 1);
+        if (segmentPoints.length < 2) continue;
+
+        let pathD = `M ${segmentPoints[0].x.toFixed(2)} ${segmentPoints[0].y.toFixed(2)}`;
+        for(let j=1; j<segmentPoints.length; j++) {
+            pathD += ` L ${segmentPoints[j].x.toFixed(2)} ${segmentPoints[j].y.toFixed(2)}`;
         }
+
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.setAttribute('d', pathD);
+        path.setAttribute('visibility', 'hidden');
+
+        const anim = document.createElementNS(SVG_NS, 'animate');
+        anim.setAttribute('attributeName', 'visibility');
         
-        const pathID = `stroke-${index}`;
-        performanceGroup += `    <path id="${pathID}" stroke-width="2" stroke="black" fill="none" opacity="0" d="${pathD}">\n`;
+        const segmentStartTime = segmentPoints[0].time;
+        const segmentEndTime = segmentPoints[segmentPoints.length - 1].time;
+        const t1 = (segmentStartTime - startTime) / 1000 / totalDuration;
+        const t2 = (segmentEndTime - startTime) / 1000 / totalDuration;
 
-        // --- Create the SMIL animation for the path drawing ---
-        const startTimeMs = stroke.points[0].time;
-        const endTimeMs = stroke.points[stroke.points.length - 1].time;
-        const durationSec = (endTimeMs - startTimeMs) / 1000;
-
-        // The 'values' attribute recreates the drawing process step-by-step
-        let animationValues = '';
-        let currentPath = `M ${stroke.points[0].x} ${stroke.points[0].y}`;
-        animationValues += currentPath; // Start with the first point
-        for (let i = 1; i < stroke.points.length; i++) {
-            currentPath += ` L ${stroke.points[i].x} ${stroke.points[i].y}`;
-            animationValues += `;${currentPath}`;
-        }
-
-        // The animation to draw the path
-        performanceGroup += `        <animate attributeName="d" begin="${startTimeMs / 1000}s" dur="${durationSec}s" values="${animationValues}" fill="freeze" />\n`;
-        // The animation to make the path appear
-        performanceGroup += `        <animate attributeName="opacity" begin="${startTimeMs / 1000}s" dur="0.01s" from="0" to="1" fill="freeze" />\n`;
+        anim.setAttribute('values', 'hidden;visible;visible;visible');
+        anim.setAttribute('keyTimes', `0;${t1.toFixed(4)};${t2.toFixed(4)};1`);
+        anim.setAttribute('dur', `${totalDuration.toFixed(2)}s`);
+        anim.setAttribute('fill', 'freeze');
         
-        performanceGroup += `    </path>\n`;
+        path.appendChild(anim);
+        performanceGroup.appendChild(path);
+    }
+    
+    svgRoot.appendChild(performanceGroup);
+
+    // 4. Serialize the final SVG string (NO placeholder)
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgRoot);
+
+    outputArea.value = beautifyXML(svgString);
+    downloadBtn.disabled = false;
+}
+
+function downloadSVG() {
+    const svgData = outputArea.value;
+    if (!svgData) return;
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'signature.svg'; 
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+}
+
+function beautifyXML(xmlString) {
+    let formatted = '', indent= '';
+    const tab = '  ';
+    xmlString.split(/>\s*</).forEach(node => {
+        if (node.match( /^\/\w/ )) indent = indent.substring(tab.length);
+        formatted += indent + '<' + node + '>\r\n';
+        if (node.match( /^<?\w[^>]*[^\/]$/ )) indent += tab;
     });
-
-    performanceGroup += '</g>\n';
-
-    // --- Assemble the final SVGX file structure ---
-    const finalSVGX = `
-<svg xmlns="http://www.w3.org/2000/svg"
-     xmlns:viait="https://viait.org/schemas/2025/svgx"
-     viewBox="0 0 600 300"
-     <!-- The Knowledge Layer -->
-     viait:signer-name="John Hancock"
-     viait:signing-date="${new Date().toISOString()}"
-     viait:intent="Authored">
-
-${performanceGroup}
-
-<!-- 
-    The W3C Digital Signature block would be inserted here by a cryptographic library.
-    It would sign the parent SVG element, cryptographically securing both the
-    Knowledge Layer (viait:* attributes) and the Presentation Layer (<g> performance).
--->
-<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
-    <!-- ... Placeholder ... -->
-</Signature>
-
-</svg>`;
-
-    outputArea.value = finalSVGX.trim();
-    // Clear the canvas for a new signature
-    canvas.innerHTML = '';
-    performanceData = [];
-    startTime = null;
+    return formatted.substring(1, formatted.length-3);
 }
