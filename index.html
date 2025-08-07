@@ -2,45 +2,124 @@
 <html>
 
 <head>
-    <title>VIAIT Core Animation Generator</title>
+    <title>VIAIT Forensic Analysis Studio</title>
+    <!-- INCLUDE D3.JS LIBRARY -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
             font-family: sans-serif;
+            color: #333;
+        }
+
+        .main-container,
+        .analysis-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .panel {
+            border: 2px solid #ccc;
+            width: 600px;
+            height: 300px;
         }
 
         #signature-canvas {
-            border: 2px solid #ccc;
             cursor: crosshair;
             touch-action: none;
         }
 
-        #output-svg {
-            width: 100%;
-            height: 200px;
-            box-sizing: border-box;
-            font-family: monospace;
+        #preview-panel {
+            background-color: #f8f8f8;
+        }
+
+        .chart-panel {
+            border: 1px solid #ddd;
+        }
+
+        .button-group {
+            margin-top: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
         }
 
         .button-group button {
             padding: 8px 12px;
             font-size: 14px;
-            margin-top: 10px;
+            margin-right: 10px;
+        }
+
+        h3 {
+            margin-bottom: 5px;
+        }
+
+        /* D3 Chart Styles */
+        .chart-line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 2px;
+        }
+
+        .chart-axis path,
+        .chart-axis line {
+            stroke: #aaa;
+        }
+
+        .chart-axis text {
+            fill: #555;
+            font-size: 10px;
+        }
+
+        .chart-title {
+            font-size: 12px;
+            font-weight: bold;
+            text-anchor: middle;
+        }
+
+        .scrubber-line {
+            stroke: red;
+            stroke-width: 1px;
         }
     </style>
 </head>
 
 <body>
-    <h1>Create Your Personal Signature Block</h1>
-    <p>Sign in the box below. Your signature will be recorded as a verifiable performance.</p>
+    <h1>VIAIT Forensic Analysis Studio</h1>
 
-    <svg id="signature-canvas" width="600" height="300"></svg>
+    <!-- 1. TOP SECTION: INPUT AND PREVIEW -->
+    <div class="main-container">
+        <div>
+            <h3>1. Signing Canvas</h3>
+            <svg id="signature-canvas" class="panel"></svg>
+        </div>
+        <div>
+            <h3>2. Signature Replay</h3>
+            <div id="preview-panel" class="panel"></div>
+        </div>
+    </div>
 
+    <!-- 2. MIDDLE SECTION: ACTION BUTTONS -->
     <div class="button-group">
-        <button id="generate-button">Generate SVG</button>
+        <button id="generate-button">Generate & Analyze</button>
+        <button id="upload-button">Upload & Analyze</button>
         <button id="download-button" disabled>Download SVG</button>
     </div>
 
-    <textarea id="output-svg" style="visibility: hidden;" readonly></textarea>
+    <!-- 3. BOTTOM SECTION: FORENSIC ANALYSIS CHARTS -->
+    <div class="analysis-container">
+        <div>
+            <h3>s(t) - Displacement</h3>
+            <svg id="st-chart" class="panel chart-panel"></svg>
+        </div>
+        <div>
+            <h3>v(t) - Velocity</h3>
+            <svg id="vt-chart" class="panel chart-panel"></svg>
+        </div>
+    </div>
+
+    <!-- Hidden elements -->
+    <textarea id="output-svg" style="display: none;" readonly></textarea>
+    <input type="file" id="file-input" accept="image/svg+xml" style="display: none;" />
 
     <script src="psb-creator.js"></script>
 </body>
