@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>VIAIT Personal Signature Block Creator</title>
+    <style>
+        #signature-canvas {
+            border: 2px solid #333;
+            cursor: crosshair;
+            touch-action: none;
+            /* Prevents scrolling on touch devices */
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Create Your Personal Signature Block</h1>
+    <p>Sign in the box below. Your signature will be recorded as a verifiable performance.</p>
+
+    <!-- Our drawing canvas -->
+    <svg id="signature-canvas" width="600" height="300"></svg>
+
+    <br>
+    <button id="finalize-button">Finalize Signature</button>
+
+    <h3>Generated SVGX Code:</h3>
+    <textarea id="output-svgx" rows="20" cols="80" readonly></textarea>
+
+    <script src="psb-creator.js"></script>
+</body>
+
+</html>
