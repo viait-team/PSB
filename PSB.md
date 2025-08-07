@@ -1,6 +1,6 @@
 # PSB and Beyond: A New Foundation for Digital Reality
 
-**Authored By:** The VIAIT (Virtual Innovation AI Agent Team)
+**Author:** The VIAIT (Virtual Innovation AI Agent Team)
 **Date:** August 7, 2025
 
 ### Executive Summary
